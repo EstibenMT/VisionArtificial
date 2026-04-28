@@ -33,6 +33,7 @@ disp('Promedio RGB imagen objetivo:');
 disp(promObjetivo');
 
 %% 1. Corrección global por canal RGB
+% Desbalance identificado: déficit del canal verde / dominante magenta.
 
 factorRGB = promObjetivo ./ promDesbalanceada;
 
@@ -47,12 +48,13 @@ disp('Factores RGB globales aplicados:');
 disp(factorRGB');
 
 ssimGlobal = ssim(im2uint8(imgBase), imgObjetivo);
+
 disp('SSIM después de corrección global:');
 disp(ssimGlobal);
 
 %% 2. Transformación vectorial RGB por bloques
 % Cada píxel se trata como vector [R G B].
-% Se calcula una transformación afín local:
+% Se aplica una transformación afín local:
 % [R' G' B'] = [R G B 1] * M
 
 blockSize = 2;
@@ -75,7 +77,6 @@ for fila = 1:blockSize:h
 
         X = [Xrgb ones(size(Xrgb,1),1)];
 
-        % Transformación vectorial RGB regularizada
         M = (X' * X + lambda * eye(size(X,2))) \ (X' * Yrgb);
 
         bloqueCorregido = X * M;
@@ -103,7 +104,19 @@ valorSSIM = ssim(imgCorregidaU8, imgObjetivo);
 disp('SSIM obtenido entre imagen corregida e imagen objetivo:');
 disp(valorSSIM);
 
-%% Mostrar resultados
+%% Mostrar imágenes
+
+figure('Name','Punto 8 - Imagen Desbalanceada');
+imshow(imgDesbalanceada);
+title('Imagen desbalanceada');
+
+figure('Name','Punto 8 - Imagen Objetivo');
+imshow(imgObjetivo);
+title('Imagen objetivo');
+
+figure('Name','Punto 8 - Imagen Corregida');
+imshow(imgCorregidaU8);
+title(['Imagen corregida - SSIM = ', num2str(valorSSIM)]);
 
 figure('Name','Punto 8 - Comparación');
 
