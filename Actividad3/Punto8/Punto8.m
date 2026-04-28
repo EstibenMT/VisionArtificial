@@ -2,7 +2,7 @@ clc;
 clear;
 close all;
 
-%% PUNTO 8 - Corrección avanzada por bloques
+%% PUNTO 8 - Corrección de balance con transformación vectorial RGB por bloques
 
 imgDesbalanceada = imread('imagen_desbalanceada.jpeg');
 imgObjetivo = imread('imagen_objetivo.jpeg');
@@ -40,6 +40,7 @@ imgBase = A;
 imgBase(:,:,1) = A(:,:,1) * factorRGB(1);
 imgBase(:,:,2) = A(:,:,2) * factorRGB(2);
 imgBase(:,:,3) = A(:,:,3) * factorRGB(3);
+
 imgBase = min(max(imgBase,0),1);
 
 disp('Factores RGB globales aplicados:');
@@ -49,67 +50,46 @@ ssimGlobal = ssim(im2uint8(imgBase), imgObjetivo);
 disp('SSIM después de corrección global:');
 disp(ssimGlobal);
 
-%% 2. Transformación local por bloques con ajuste cuadrático regularizado
+%% 2. Transformación vectorial RGB por bloques
+% Cada píxel se trata como vector [R G B].
+% Se calcula una transformación afín local:
+% [R' G' B'] = [R G B 1] * M
 
-blockSize = 4;   % prueba 8 o 4. 4 suele acercar más al objetivo
-lambda = 1e-6;
+blockSize = 2;
+lambda = 1e-8;
 
 [h,w,~] = size(A);
 imgCorregida = zeros(size(A));
 
-for canal = 1:3
+for fila = 1:blockSize:h
+    for col = 1:blockSize:w
 
-    canalEntrada = imgBase(:,:,canal);
-    canalObjetivo = B(:,:,canal);
-    canalSalida = zeros(h,w);
+        f2 = min(fila + blockSize - 1, h);
+        c2 = min(col + blockSize - 1, w);
 
-    for fila = 1:blockSize:h
-        for col = 1:blockSize:w
+        bloqueEntrada = imgBase(fila:f2, col:c2, :);
+        bloqueObjetivo = B(fila:f2, col:c2, :);
 
-            f2 = min(fila + blockSize - 1, h);
-            c2 = min(col + blockSize - 1, w);
+        Xrgb = reshape(bloqueEntrada, [], 3);
+        Yrgb = reshape(bloqueObjetivo, [], 3);
 
-            bloqueEntrada = canalEntrada(fila:f2, col:c2);
-            bloqueObjetivo = canalObjetivo(fila:f2, col:c2);
+        X = [Xrgb ones(size(Xrgb,1),1)];
 
-            x = bloqueEntrada(:);
-            y = bloqueObjetivo(:);
+        % Transformación vectorial RGB regularizada
+        M = (X' * X + lambda * eye(size(X,2))) \ (X' * Yrgb);
 
-            % Si el bloque tiene poca variación, aplicar solo ganancia local
-            if std(x) < 1e-5
-                if mean(x) > 0
-                    gananciaLocal = mean(y) / mean(x);
-                else
-                    gananciaLocal = 1;
-                end
+        bloqueCorregido = X * M;
+        bloqueCorregido = reshape(bloqueCorregido, f2-fila+1, c2-col+1, 3);
 
-                bloqueCorregido = bloqueEntrada * gananciaLocal;
+        imgCorregida(fila:f2, col:c2, :) = bloqueCorregido;
 
-            else
-                % Transformación cuadrática:
-                % y ≈ a*x^2 + b*x + c
-                X = [x.^2 x ones(size(x))];
-
-                % Solución regularizada:
-                coef = (X' * X + lambda * eye(size(X,2))) \ (X' * y);
-
-                bloqueCorregido = coef(1)*bloqueEntrada.^2 + ...
-                                  coef(2)*bloqueEntrada + ...
-                                  coef(3);
-            end
-
-            canalSalida(fila:f2, col:c2) = bloqueCorregido;
-
-        end
     end
-
-    imgCorregida(:,:,canal) = canalSalida;
 end
 
 imgCorregida = min(max(imgCorregida,0),1);
 imgCorregidaU8 = im2uint8(imgCorregida);
 
-%% Promedios RGB imagen corregida
+%% Promedio RGB imagen corregida
 
 promCorregida = squeeze(mean(mean(imgCorregida,1),2));
 
