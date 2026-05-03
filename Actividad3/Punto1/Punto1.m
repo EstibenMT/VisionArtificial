@@ -1,7 +1,7 @@
 % Punto 1 - Conversión a escala de grises con mapa de color negativo de jet
 
 % Leer la imagen original
-img = imread('ImagenE3.jpg');  % Cambia el nombre si es necesario
+img = imread('ImagenE3.jpg');
 
 % Convertir de RGB a escala de grises
 img_gray = rgb2gray(img);
@@ -16,9 +16,9 @@ title('Imagen en escala de grises con mapa negativo de jet');
 colorbar;
 
 % Identificar la tripleta RGB para intensidad uint8 = 159
-% En el mapa negativo de jet, el índice 159 corresponde a la fila 160 (1-indexed)
+% En el mapa negativo de jet, el índice 159 corresponde a la fila 160
 nivel = 159;  % valor uint8 (0-255)
-indice = nivel + 1;  % MATLAB usa índices desde 1
+indice = nivel + 1;
 
 tripleta_rgb = neg_jet(indice, :);
 
